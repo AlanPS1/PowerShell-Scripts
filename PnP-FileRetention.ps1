@@ -78,7 +78,52 @@ New-Module {
 
         }
         Else {
+            # ToDo
+        }
 
+        $Script:RootFolder = Read-Host "Do you want to add a retention label to the 'Documents' root (y/n)"
+        While ("y", "n" -notcontains $RootFolder ) {
+            $RootFolder = Read-Host "Do you want to add a retention label to the 'Documents' root (y/n)"
+        }
+
+        If ($RootFolder -eq "y") {
+            $Script:RootLabel = Read-Host "Enter the label to be applied to 'Documents'"
+            $Answer = Read-Host "You are applying label '$RootLabel' to 'Documents' (y/n)"
+        }
+
+        $Script:FolderLabelPairs = @()
+        Initialize-FolderLabelPair
+
+    }
+
+    Function Initialize-FolderLabelPair {
+
+        $Folder = Read-Host "Enter folder to be created"
+        $Label  = Read-Host "Enter the label to be applied to $($Folder)"
+        $Answer = Read-Host "You are creating Folder '$Folder' and applying label '$label' (y/n)"
+        While ("y", "n" -notcontains $Answer ) {
+            $Answer = Read-Host "You are creating Folder '$Folder' and applying label '$label' (y/n)"
+        }
+
+        If ($Answer -eq "y") {
+            $Datum = New-Object -TypeName PSObject
+            $Datum | Add-Member -MemberType NoteProperty -Name FolderName -Value $Folder
+            $Datum | Add-Member -MemberType NoteProperty -Name LabelName -Value $Label
+        }
+
+        $Script:FolderLabelPairs += $Datum
+
+        $Answer = Read-Host "Would you like to create another folder (y/n)"
+        While ("y", "n" -notcontains $Answer ) {
+            $Answer = Read-Host "Would you like to create another folder (y/n)"
+        }
+
+        If ($Answer -eq "y") {
+            Initialize-FolderLabelPair
+        }
+        Else {
+            # ToDo
+            Write-Host $FolderLabelPairs
         }
 
     }
@@ -114,9 +159,6 @@ New-Module {
 
         .PARAMETER UserPrincipalName
         Mandatory parameter for the service principal certificate password.
-        
-        .PARAMETER Designs
-        Creates a 4th folder called "My Des Wosk" and applies a label called "DesinsWork"
 
         .EXAMPLE
         PS C:\> Add-FolderWithLabel -CertPass <Cert Pass> -UserPrincipalName "john.doe@contoso.com" -Verbose
@@ -140,18 +182,6 @@ New-Module {
 
         A label called "Default" is applied to the root Documents folder.
 
-        .EXAMPLE
-        PS C:\> Add-FolderWithLabel -CertPass <Cert Pass>  -UserPrincipalName "john.doe@contoso.com" -Designsork
-
-        This will create the following 4 folders and apply the required label to each folder.
-
-        My Recipes      : Recipes
-        My WorkOuts     : WorkOuts
-        My Certificates : Certificates
-        My Designs      : Designs
-
-        A label called "Default" is applied to the root Documents folder.
-
         .NOTES
 
         Author:  Alan Wightman
@@ -160,18 +190,13 @@ New-Module {
 
         #>
 
-        # Todo: Implement a prompt and ask for a mandatory pair of Folder & Label
-        # Once user enters all folder & label combinations type "Done" or similar to move on
-
         [OutputType()]
         [CmdletBinding()]
         Param (
         [Parameter(Mandatory = $true, Position = 1)]
         [string]$CertPass,
         [Parameter(Mandatory = $true, Position = 2)]
-        [string[]] $UserPrincipalName,
-        [Parameter(Mandatory = $false, Position = 3)]
-        [switch]$Designs
+        [string[]] $UserPrincipalName
         )
 
         Invoke-Prerequisites $CertPass
@@ -217,13 +242,11 @@ New-Module {
         $Response = $null
         $StatusCode = $null
 
-        $Result = Get-PNPLabel -List "Documents"
-
-            If ($Result[0] -notlike "*Default*") {
-
+            If ($RootFolder -eq "y") {
+    
                 Try {
-                    Set-PnPLabel -List "Documents" -Label "Default" -SyncToItems $true -ErrorAction Stop
-                    Write-Verbose "Label called 'Default' applied to 'Documents - Root' Folder"
+                    Set-PnPLabel -List "Documents" -Label "$($RootLabel)" -SyncToItems $true -ErrorAction Stop
+                    Write-Verbose "Label called '$($RootLabel)' applied to 'Documents - Root' Folder"
                 } 
                 Catch [Microsoft.SharePoint.Client.ServerException] {
                     Write-Warning -Message $($_.Exception.Message)
@@ -234,76 +257,29 @@ New-Module {
 
             }
 
-        $Folder = "My Recipes"
+        # ForEach ($Entry in $FolderLabelPairs) {} # Test only - to be removed
+
+        ForEach ($Entry in $Script:FolderLabelPairs) {
+
+            $Folder = $Entry.FolderName
+            $Label  = $Entry.LabelName
 
             Try {
                 Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
             } 
             Catch [Microsoft.SharePoint.Client.ServerException] {
-                Add-PnPFolder -Name $Folder  -Folder "Documents" -ErrorAction Stop
+                Add-PnPFolder -Name $Folder -Folder "Documents" -ErrorAction Stop
             } 
             Catch {
                 Write-Warning -Message $($_.Exception.Message)
             }
 
-        $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
-        $Folder.ListItemAllFields.SetComplianceTagWithNoHold("Recipes") 
-        Invoke-PnPQuery
-        Write-Verbose "Label called 'Recipes' applied to '$($Folder)' Folder"
+            $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
+            $Folder.ListItemAllFields.SetComplianceTagWithNoHold($Label) 
+            Invoke-PnPQuery
+            Write-Verbose "Label called '$($Label)' applied to '$($Folder)' Folder"
 
-        $Folder = "My Workouts"
-
-            Try {
-                Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
-            } 
-            Catch [Microsoft.SharePoint.Client.ServerException] {
-                Add-PnPFolder -Name $Folder  -Folder "Documents" -ErrorAction Stop
-            } 
-            Catch {
-                Write-Warning -Message $($_.Exception.Message)
-            }
-
-        $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
-        $Folder.ListItemAllFields.SetComplianceTagWithNoHold("WorkOuts") 
-        Invoke-PnPQuery
-        Write-Verbose "Label called 'WorkOuts' applied to '$($Folder)' Folder"
-
-        $Folder = "My Certificates"
-
-            Try {
-                Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
-            } 
-            Catch [Microsoft.SharePoint.Client.ServerException] {
-                Add-PnPFolder -Name $Folder  -Folder "Documents" -ErrorAction Stop
-            } 
-            Catch {
-                Write-Warning -Message $($_.Exception.Message)
-            }
-
-        $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
-        $Folder.ListItemAllFields.SetComplianceTagWithNoHold("Certificates")
-        Invoke-PnPQuery
-        Write-Verbose "Label called 'Certificates' applied to '$($Folder)' Folder"
-
-            If ($PSBoundParameters.Keys -contains "Designs") {
-                
-                $Folder = "My Designs"
-                
-                Try {
-                    Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
-                } 
-                Catch [Microsoft.SharePoint.Client.ServerException] {
-                    Add-PnPFolder -Name $Folder  -Folder "Documents" -ErrorAction Stop
-                } 
-                Catch {
-                    Write-Warning -Message $($_.Exception.Message)
-                }
-                
-                $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
-                $Folder.ListItemAllFields.SetComplianceTagWithNoHold("Designs")
-                Invoke-PnPQuery
-                Write-Verbose "Label called 'Designs' applied to '$($Folder)' Folder"
-            }
+        }
 
         Disconnect-PnPOnline
 
