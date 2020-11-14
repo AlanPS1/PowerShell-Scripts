@@ -14,7 +14,7 @@ New-Module {
         [ValidateNotNullorEmpty()]
         [string] $ClientID = "1f7e91f2-0d86-45bc-9c66-404e4958498f",
         [Parameter(Mandatory = $false, ValueFromPipeline = $true, HelpMessage = "Enter certificate .pfx path")]
-        [String]$CertPath = "$Home\AppData\Local\LabSPOAccess.pfx" # $null
+        [String]$CertPath = "$Home\AppData\Local\LabSPOAccess.pfx"
         )
 
         $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
@@ -25,7 +25,6 @@ New-Module {
 
         If ($CertPath -eq $null) {
 
-<<<<<<< Updated upstream
             Add-Type -AssemblyName System.Windows.Forms
 
             $Dialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -55,69 +54,6 @@ New-Module {
                 Write-Host -ForegroundColor Yellow "Notice: No file selected."
                 Break
             }
-=======
-            While ("y", "n" -notcontains $Answer ) {
-                $Answer = Read-Host "Default setup uses $Tenant tenant (y/n)"
-            }
-                
-            If ($Answer -eq "y") {
-                $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
-                $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
-                $Script:ClientID    = $ClientID
-                $Script:CertPass    = $CertPass
-                $Script:CertPath    = $CertPath
-            }
-            Else {
-                # ToDo
-                # Read-Host to capture the desired values
-                $Tenant             = Read-Host "Enter your O365 tenant name, like 'contoso'"
-                $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
-                $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
-                $Script:ClientID    = Read-Host "Enter your Az App Client ID"
-                $CertPath           = $null
-
-                If ($CertPath -eq $null) {
-
-                    Add-Type -AssemblyName System.Windows.Forms
-
-                    $Dialog = New-Object System.Windows.Forms.OpenFileDialog
-                    $Dialog.InitialDirectory = "$InitialDirectory"
-                    $Dialog.Title = "Select certificate file"
-                    $Dialog.Filter = "Certificate file|*.pfx"        
-                    $Dialog.Multiselect = $false
-                    $Result = $Dialog.ShowDialog()
-
-                    If ($Result -eq 'OK') {
-
-                        Try {
-    
-                            $Script:CertPath = $Dialog.FileName
-                        }
-
-                        Catch {
-
-                            $Script:CertPath = $null
-                            Break
-                        }
-                    }
-
-                    Else {
-
-                        #Shows upon cancellation of Save Menu
-                        Write-Host -ForegroundColor Yellow "Notice: No file selected."
-                        Break
-                    }
-                }
-
-            }
-
-        }
-        PROCESS {
-            Write-Host "Boo"
-        }
-        END {
-            # ToDo
->>>>>>> Stashed changes
         }
 
     }
