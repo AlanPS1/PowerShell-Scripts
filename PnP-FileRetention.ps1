@@ -23,37 +23,53 @@ New-Module {
         $Script:CertPass    = $CertPass
         $Script:CertPath    = $CertPath
 
-        If ($CertPath -eq $null) {
+        $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
+        while ("y", "n" -notcontains $Answer ) {
+            $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
+        }
 
-            Add-Type -AssemblyName System.Windows.Forms
+        If ($Answer -ne "y") {
+            $Tenant             = Read-Host "Enter your O365 tenant name, like 'contoso'"
+            $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
+            $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
+            $Script:ClientID    = Read-Host "Enter your Az App Client ID"
+            $CertPath           = $null
 
-            $Dialog = New-Object System.Windows.Forms.OpenFileDialog
-            $Dialog.InitialDirectory = "$InitialDirectory"
-            $Dialog.Title = "Select certificate file"
-            $Dialog.Filter = "Certificate file|*.pfx"        
-            $Dialog.Multiselect = $false
-            $Result = $Dialog.ShowDialog()
+            If (-Not $CertPath) {
 
-            if ($Result -eq 'OK') {
+                Add-Type -AssemblyName System.Windows.Forms
 
-                Try {
+                $Dialog = New-Object System.Windows.Forms.OpenFileDialog
+                $Dialog.InitialDirectory = "$InitialDirectory"
+                $Dialog.Title = "Select certificate file"
+                $Dialog.Filter = "Certificate file|*.pfx"        
+                $Dialog.Multiselect = $false
+                $Result = $Dialog.ShowDialog()
+
+                if ($Result -eq 'OK') {
+
+                    Try {
     
-                    $Script:CertPath = $Dialog.FileNames
+                        $Script:CertPath = $Dialog.FileName
+                    }
+
+                    Catch {
+
+                        $Script:CertPath = $null
+                        Break
+                    }
                 }
 
-                Catch {
-
-                    $Script:CertPath = $null
+                else {
+                    #Shows upon cancellation of Save Menu
+                    Write-Host -ForegroundColor Yellow "Notice: No file selected."
                     Break
                 }
             }
 
-            else {
+        }
+        Else {
 
-                #Shows upon cancellation of Save Menu
-                Write-Host -ForegroundColor Yellow "Notice: No file selected."
-                Break
-            }
         }
 
     }
