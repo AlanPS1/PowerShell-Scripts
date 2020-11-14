@@ -22,3 +22,23 @@ Below is a breakdown of some of what you will find in this repository.
 ## More to come
 
 Please visit [AlanPs1.io](AlanPs1.io) to learn more about what I do.
+
+## Using PnP-FileRetention.ps1
+
+Firstly you will need to dot source the script
+
+```powershell
+. .\PnP-FileRetention.ps1
+```
+
+Then you will run the following command
+
+```powershell
+Add-FolderWithLabel -CertPass <Certificate Password> -UserPrincipalName "john.doe@contoso.com"
+```
+
+Other examples available using:
+
+```powershell
+Get-Help Add-FolderWithLabel -Examples
+```
