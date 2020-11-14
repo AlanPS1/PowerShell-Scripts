@@ -1,4 +1,13 @@
+<#  For authentication method see: 
+    https://github.com/pnp/PnP-PowerShell/tree/master/Samples/SharePoint.ConnectUsingAppPermissions 
+#>
+
 New-Module {
+
+    <# Update the default values below - Or leave as $null to be prompted for values #>
+    $Script:Tenant   = "wonderful12345" # Like 'Contoso'
+    $Script:ClientID = "1f7e91f2-0d86-45bc-9c66-404e4958498f"
+    $Script:CertPath = "$Home\AppData\Local\LabSPOAccess.pfx"
 
     Function Invoke-Prerequisites {
 
@@ -9,12 +18,12 @@ New-Module {
         [string]$CertPass,
         [Parameter(Mandatory = $false, HelpMessage = "Enter your O365 tenant name, like 'contoso'")]
         [ValidateNotNullorEmpty()]
-        [string] $Tenant = "wonderful12345",
+        [string] $Tenant = $Tenant,
         [Parameter(Mandatory = $false, HelpMessage = "Enter your Az App Client ID")]
         [ValidateNotNullorEmpty()]
-        [string] $ClientID = "1f7e91f2-0d86-45bc-9c66-404e4958498f",
+        [string] $ClientID = $ClientID,
         [Parameter(Mandatory = $false, ValueFromPipeline = $true, HelpMessage = "Enter certificate .pfx path")]
-        [String]$CertPath = "$Home\AppData\Local\LabSPOAccess.pfx"
+        [String]$CertPath = $CertPath
         )
 
         $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
@@ -24,7 +33,7 @@ New-Module {
         $Script:CertPath    = $CertPath
 
         $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
-        while ("y", "n" -notcontains $Answer ) {
+        While ("y", "n" -notcontains $Answer ) {
             $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
         }
 
@@ -89,6 +98,10 @@ New-Module {
         then disconnect the session at the end. 
         
         This function can process multiple users at one time.
+
+        This function depends on authentication using an Azure App connecting using the .pfx directly.
+        More information here: 
+        https://github.com/pnp/PnP-PowerShell/tree/master/Samples/SharePoint.ConnectUsingAppPermissions
 
         .DESCRIPTION
         This Function will deploy 3 folders within a user's OneDrive Folder.
