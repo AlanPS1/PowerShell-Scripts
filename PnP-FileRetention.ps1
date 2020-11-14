@@ -14,7 +14,7 @@ New-Module {
         [ValidateNotNullorEmpty()]
         [string] $ClientID = "1f7e91f2-0d86-45bc-9c66-404e4958498f",
         [Parameter(Mandatory = $false, ValueFromPipeline = $true, HelpMessage = "Enter certificate .pfx path")]
-        [String]$CertPath = "$Home\AppData\Local\LabSPOAccess.pfx" # $null
+        [String]$CertPath = "$Home\AppData\Local\LabSPOAccess.pfx"
         )
 
         $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
