@@ -131,6 +131,7 @@ New-Module {
         Write-Host ""
 
     }
+
     Function Initialize-FolderLabelPair {
 
         $Folder = Read-Host "Enter folder to be created"
@@ -176,25 +177,28 @@ New-Module {
         .SYNOPSIS
         Add-FolderWithLabel firstly checks if the user has provisioned there OneDrive. If the
         user has not provisioned their OneDrive the script will do it for them. After that, the 
-        script goes on to create either 3 or 4 folders within their OneDrive and adds the
-        required retention label to each folder. There is a an additional label that gets added
-        to the root "Documents" folder. There is no need to create that folder, just to apply
-        the label. 
+        script goes on to prompt for folder and label names that will then be created within
+        OneDrive then adds the required retention label to each folder. There is a an additional 
+        optional label that can be added to the root "Documents" folder. There is no need to create
+        that folder, just to apply the label. 
         
         This function will handle both authentication to PnP Online using a service pricipal and 
         then disconnect the session at the end. 
         
-        This function can process multiple users at one time.
+        This function can process multiple users at one time and accepts UserPrincipalNames accross
+        the pipeline.
 
         This function depends on authentication using an Azure App connecting using the .pfx directly.
-        More information here: 
+        More information here:
+        https://www.alanps1.io/powershell/connect-pnponline-unattended-using-azure-app-only-tokens
         https://github.com/pnp/PnP-PowerShell/tree/master/Samples/SharePoint.ConnectUsingAppPermissions
 
         .DESCRIPTION
-        This Function will deploy 3 folders within a user's OneDrive Folder.
-        When using -Designs switch, a 4th folder is deployed cad "My Designs".
-        Each folder's label has a 6 month retention applied except for "My Designs"
-        which has a 7 year retention applied.
+        This Function will deploy 1 to many folders within a user's OneDrive Folder. Each folder's label 
+        has to be pre configured within Microsoft 365 @ https://compliance.microsoft.com/recordsmanagement
+
+        More information here:
+        https://docs.microsoft.com/en-us/microsoft-365/compliance/create-apply-retention-labels
 
         .PARAMETER Password
         Mandatory parameter for the service principal certificate password.
@@ -205,25 +209,72 @@ New-Module {
         .EXAMPLE
         PS C:\> Add-FolderWithLabel -CertPass <Cert Pass> -UserPrincipalName "john.doe@contoso.com" -Verbose
 
-        This will create the following 3 folders and apply the required label to each folder.
+        Enter your O365 tenant name, like 'contoso': contoso
+        Enter your Az App Client ID: 7g9e91z5-0d36-45ft-9c47-404e4758298g
+        Please Select your certificate .pfx file
 
-        My Recipes      : Recipes
-        My WorkOuts     : WorkOuts
-        My Certificates : Certificates
+        Do you want to add a retention label to the 'Documents' root (y/n): y
+        Enter the label to be applied to 'Documents': Default
+        You are applying label 'Default' to 'Documents' (y/n): y
 
-        A label called "Default" is applied to the root Documents folder.
+        Enter folder to be created: My Recipes
+        Enter the label to be applied to My Recipes: Recipes
+        You are creating Folder 'My Recipes' and applying label 'Recipes' (y/n): y
+        Would you like to create another folder (y/n): y
+
+        Enter folder to be created: My WorkOuts
+        Enter the label to be applied to My WorkOuts: WorkOuts
+        You are creating Folder 'My WorkOuts' and applying label 'WorkOuts' (y/n): y
+        Would you like to create another folder (y/n): n
 
         .EXAMPLE
         PS C:\> Add-FolderWithLabel -CertPass <Cert Pass> -UserPrincipalName "john.doe@contoso.com", "jane.doe@contoso.com"
 
-        This will create the following 3 folders and apply the required label to each folder.
+        Enter your O365 tenant name, like 'contoso': contoso
+        Enter your Az App Client ID: 7g9e91z5-0d36-45ft-9c47-404e4758298g
+        Please Select your certificate .pfx file
 
-        My Recipes      : Recipes
-        My WorkOuts     : WorkOuts
-        My Certificates : Certificates
+        Do you want to add a retention label to the 'Documents' root (y/n): y
+        Enter the label to be applied to 'Documents': Default
+        You are applying label 'Default' to 'Documents' (y/n): y
 
-        A label called "Default" is applied to the root Documents folder.
+        Enter folder to be created: My Recipes
+        Enter the label to be applied to My Recipes: Recipes
+        You are creating Folder 'My Recipes' and applying label 'Recipes' (y/n): y
+        Would you like to create another folder (y/n): y
 
+        Enter folder to be created: My WorkOuts
+        Enter the label to be applied to My WorkOuts: WorkOuts
+        You are creating Folder 'My WorkOuts' and applying label 'WorkOuts' (y/n): y
+        Would you like to create another folder (y/n): n
+
+        .EXAMPLE
+        PS C:\> Import-Csv -Path $env:LOCALAPPDATA\UserPrincipalNames.Csv | Add-FolderWithLabel -CertPass <Cert Pass>
+
+        Enter your O365 tenant name, like 'contoso': contoso
+        Enter your Az App Client ID: 7g9e91z5-0d36-45ft-9c47-404e4758298g
+        Please Select your certificate .pfx file
+
+        Do you want to add a retention label to the 'Documents' root (y/n): y
+        Enter the label to be applied to 'Documents': Default
+        You are applying label 'Default' to 'Documents' (y/n): y
+
+        Enter folder to be created: My Recipes
+        Enter the label to be applied to My Recipes: Recipes
+        You are creating Folder 'My Recipes' and applying label 'Recipes' (y/n): y
+        Would you like to create another folder (y/n): y
+
+        Enter folder to be created: My WorkOuts
+        Enter the label to be applied to My WorkOuts: WorkOuts
+        You are creating Folder 'My WorkOuts' and applying label 'WorkOuts' (y/n): y
+        Would you like to create another folder (y/n): n
+        
+        .LINK
+        https://www.alanps1.io/powershell/connect-pnponline-unattended-using-azure-app-only-tokens
+
+        .LINK
+        https://docs.microsoft.com/en-us/microsoft-365/compliance/create-apply-retention-labels
+        
         .NOTES
 
         Author:  Alan Wightman
@@ -237,70 +288,40 @@ New-Module {
         Param (
         [Parameter(Mandatory = $true, Position = 1)]
         [string]$CertPass,
-        [Parameter(Mandatory = $true, Position = 2)]
+        [Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, Position = 2)]
         [string[]] $UserPrincipalName
         )
 
-        Invoke-Prerequisites $CertPass
+        BEGIN {
 
-        Foreach ($User in $UserPrincipalName) {
+            Invoke-Prerequisites $CertPass
 
-        $SiteUrl = "$($MySPUrl)/$(($User).Replace("@", "_").Replace(".", "_"))"
-
-        $Params = @{
-            ClientId            = $ClientID
-            CertificatePath     = $CertPath
-            CertificatePassword = (ConvertTo-SecureString -AsPlainText $CertPass -Force)
-            Url                 = $SiteUrl
-            Tenant              = $AadDomain
         }
 
-        Connect-PnPOnline @Params
+        PROCESS {
 
-        $Context = New-Object Microsoft.SharePoint.Client.ClientContext($SiteUrl) 
-        $web = $Context.Web 
-        $Context.Load($Web)
+            Foreach ($User in $UserPrincipalName) {
 
-        $TheUser = ($User).Split("@")[0]
+                $SiteUrl = "$($MySPUrl)/$(($User).Replace("@", "_").Replace(".", "_"))"
 
-        Write-Host "Verifying User:" $TheUser
+                $Params = @{
+                    ClientId            = $ClientID
+                    CertificatePath     = $CertPath
+                    CertificatePassword = (ConvertTo-SecureString -AsPlainText $CertPass -Force)
+                    Url                 = $SiteUrl
+                    Tenant              = $AadDomain
+                }
 
-            Try {
+                Connect-PnPOnline @Params
 
-                $Response = Invoke-WebRequest -Uri $SiteUrl
-                $StatusCode = $Response.StatusCode
+                # Get-PnPSite -ErrorAction SilentlyContinue | Out-Null
 
-            }
-            Catch {
-
-                $StatusCode = $_.Exception.Response.StatusCode.value__
-
-            }
-
-            If ($StatusCode -eq 200 -or $StatusCode -eq 400) {
-
-                Write-Host -ForegroundColor Green "Site for user $TheUser has already been provisioned"
-
-            }
-            Else {
-
-                Write-Host -ForegroundColor Yellow "Provisioning OneDrive for User: $TheUser"
-                New-PnPPersonalSite -Email $User
-
-            }
-
-        $Response = $null
-        $StatusCode = $null
-
-            If ($RootFolder -eq "y") {
-    
                 Try {
 
-                    Set-PnPLabel -List "Documents" -Label $RootLabel -SyncToItems $true -ErrorAction Stop
-                    Write-Verbose "Label called '$($RootLabel)' applied to 'Documents - Root' Folder"
+                    Get-PnPSite -ErrorAction SilentlyContinue | Out-Null
 
                 } 
-                Catch [Microsoft.SharePoint.Client.ServerException] {
+                Catch [System.Net.WebException] {
 
                     Write-Warning -Message $($_.Exception.Message)
 
@@ -311,38 +332,108 @@ New-Module {
 
                 }
 
+                If ($?) {
+
+                    $Context = New-Object Microsoft.SharePoint.Client.ClientContext($SiteUrl) 
+                    $web = $Context.Web 
+                    $Context.Load($Web)
+
+                    $TheUser = ($User).Split("@")[0]
+
+                    Write-Host "Verifying User:" $TheUser
+
+                    Try {
+
+                        $Response = Invoke-WebRequest -Uri $SiteUrl
+                        $StatusCode = $Response.StatusCode
+
+                    }
+                    Catch {
+
+                        $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    }
+
+                    If ($StatusCode -eq 200 -or $StatusCode -eq 400) {
+
+                        Write-Host -ForegroundColor Green "Site for user $TheUser has already been provisioned"
+
+                    }
+                    Else {
+
+                        Write-Host -ForegroundColor Yellow "Provisioning OneDrive for User: $TheUser"
+                        New-PnPPersonalSite -Email $User
+
+                    }
+
+                    $Response = $null
+                    $StatusCode = $null
+
+                    If ($RootFolder -eq "y") {
+
+                        Try {
+
+                            Set-PnPLabel -List "Documents" -Label $RootLabel -SyncToItems $true -ErrorAction Stop
+                            Write-Verbose "Label called '$($RootLabel)' applied to 'Documents - Root' Folder"
+
+                        } 
+                        Catch [Microsoft.SharePoint.Client.ServerException] {
+
+                            Write-Warning -Message $($_.Exception.Message)
+
+                        } 
+                        Catch {
+
+                            Write-Warning -Message $($_.Exception.Message)
+
+                        }
+
+                    }
+
+                    ForEach ($Entry in $Script:FolderLabelPairs) {
+
+                        $Folder = $Entry.FolderName
+                        $Label = $Entry.LabelName
+
+                        Try {
+
+                            Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
+
+                        } 
+                        Catch [Microsoft.SharePoint.Client.ServerException] {
+
+                            Add-PnPFolder -Name $Folder -Folder "Documents" -ErrorAction Stop
+
+                        } 
+                        Catch {
+
+                            Write-Warning -Message $($_.Exception.Message)
+
+                        }
+
+                        $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
+                        $Folder.ListItemAllFields.SetComplianceTagWithNoHold($Label) 
+                        Invoke-PnPQuery
+                        Write-Verbose "Label called '$($Label)' applied to '$($Folder.Name)' Folder"
+
+                    }
+
+                } 
+                Else {
+
+                    # ToDo: Log or handle the error
+                    Write-Host "Doesn't Exist"
+
+                }
+
+                Disconnect-PnPOnline
+
             }
-
-        ForEach ($Entry in $Script:FolderLabelPairs) {
-
-            $Folder = $Entry.FolderName
-            $Label  = $Entry.LabelName
-
-            Try {
-
-                Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
-
-            } 
-            Catch [Microsoft.SharePoint.Client.ServerException] {
-
-                Add-PnPFolder -Name $Folder -Folder "Documents" -ErrorAction Stop
-
-            } 
-            Catch {
-
-                Write-Warning -Message $($_.Exception.Message)
-
-            }
-
-            $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
-            $Folder.ListItemAllFields.SetComplianceTagWithNoHold($Label) 
-            Invoke-PnPQuery
-            Write-Verbose "Label called '$($Label)' applied to '$($Folder.Name)' Folder"
 
         }
 
-        Disconnect-PnPOnline
-
+        END {
+            # ToDo
         }
 
     }
