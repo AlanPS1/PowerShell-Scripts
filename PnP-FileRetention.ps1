@@ -1,13 +1,13 @@
 <#  For authentication method see: 
-    https://github.com/pnp/PnP-PowerShell/tree/master/Samples/SharePoint.ConnectUsingAppPermissions 
+    https://www.alanps1.io/powershell/connect-pnponline-unattended-using-azure-app-only-tokens/
 #>
 
 New-Module {
 
-    <# Update the default values below - Or leave as $null to be prompted for values #>
-    $Script:Tenant   = "wonderful12345" # Like 'Contoso'
-    $Script:ClientID = "1f7e91f2-0d86-45bc-9c66-404e4958498f"
-    $Script:CertPath = "$Home\AppData\Local\LabSPOAccess.pfx"
+    <# Update the default values below - Or leave blank to be prompted for values #>
+    $Script:Tenant   = "" # Like 'contoso'
+    $Script:ClientID = ""
+    $Script:CertPath = ""
 
     Function Invoke-Prerequisites {
 
@@ -22,7 +22,7 @@ New-Module {
         [Parameter(Mandatory = $false, HelpMessage = "Enter your Az App Client ID")]
         [ValidateNotNullorEmpty()]
         [string] $ClientID = $ClientID,
-        [Parameter(Mandatory = $false, ValueFromPipeline = $true, HelpMessage = "Enter certificate .pfx path")]
+        [Parameter(Mandatory = $false, HelpMessage = "Enter certificate .pfx path")]
         [String]$CertPath = $CertPath
         )
 
@@ -32,98 +32,140 @@ New-Module {
         $Script:CertPass    = $CertPass
         $Script:CertPath    = $CertPath
 
-        $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
-        While ("y", "n" -notcontains $Answer ) {
-            $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
-        }
+        If (-Not $Tenant -or -Not $ClientID -or -Not $CertPath) {
 
-        If ($Answer -ne "y") {
-            $Tenant             = Read-Host "Enter your O365 tenant name, like 'contoso'"
-            $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
-            $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
-            $Script:ClientID    = Read-Host "Enter your Az App Client ID"
-            $CertPath           = $null
-
-            If (-Not $CertPath) {
-
-                Add-Type -AssemblyName System.Windows.Forms
-
-                $Dialog = New-Object System.Windows.Forms.OpenFileDialog
-                $Dialog.InitialDirectory = "$InitialDirectory"
-                $Dialog.Title = "Select certificate file"
-                $Dialog.Filter = "Certificate file|*.pfx"        
-                $Dialog.Multiselect = $false
-                $Result = $Dialog.ShowDialog()
-
-                if ($Result -eq 'OK') {
-
-                    Try {
-    
-                        $Script:CertPath = $Dialog.FileName
-                    }
-
-                    Catch {
-
-                        $Script:CertPath = $null
-                        Break
-                    }
-                }
-
-                else {
-                    #Shows upon cancellation of Save Menu
-                    Write-Host -ForegroundColor Yellow "Notice: No file selected."
-                    Break
-                }
-            }
+            Add-RequiredValues
 
         }
         Else {
-            # ToDo
+
+            $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
+
+            While ("y", "n" -notcontains $Answer ) {
+                $Answer = Read-Host "Are you performing actions on $Tenant tenant (y/n)"
+            }
+
+            If ($Answer -ne "y") {
+
+                Add-RequiredValues
+
+            }
+
         }
 
         $Script:RootFolder = Read-Host "Do you want to add a retention label to the 'Documents' root (y/n)"
+
         While ("y", "n" -notcontains $RootFolder ) {
+
             $RootFolder = Read-Host "Do you want to add a retention label to the 'Documents' root (y/n)"
+
         }
 
         If ($RootFolder -eq "y") {
+
             $Script:RootLabel = Read-Host "Enter the label to be applied to 'Documents'"
             $Answer = Read-Host "You are applying label '$RootLabel' to 'Documents' (y/n)"
+            Write-Host ""
+
         }
 
         $Script:FolderLabelPairs = @()
+
         Initialize-FolderLabelPair
 
     }
 
+    Function Add-RequiredValues {
+
+        [ValidatePattern('^[a-zA-Z0-9]+$')]
+        $Tenant             = Read-Host "Enter your O365 tenant name, like 'contoso'"
+
+        $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
+        $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
+
+        [ValidatePattern('^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$')]
+        $Script:ClientID    = Read-Host "Enter your Az App Client ID"
+
+        $CertPath           = $null
+
+        If (-Not $CertPath) {
+
+            Add-Type -AssemblyName System.Windows.Forms
+
+            $Dialog = New-Object System.Windows.Forms.OpenFileDialog
+            $Dialog.InitialDirectory = "$InitialDirectory"
+            $Dialog.Title = "Select certificate file"
+            $Dialog.Filter = "Certificate file|*.pfx"        
+            $Dialog.Multiselect = $false
+
+            Write-Host "Please Select your certificate .pfx file"
+
+            $Result = $Dialog.ShowDialog()
+
+            If ($Result -eq 'OK') {
+
+                Try {
+
+                    $Script:CertPath = $Dialog.FileName
+
+                }
+
+                Catch {
+
+                    $Script:CertPath = $null
+                    Break
+
+                }
+
+            }
+
+            Else {
+
+                #Shows upon cancellation of Save Menu
+                Write-Host -ForegroundColor Yellow "Notice: No file selected."
+                Break
+
+            }
+        }
+
+        Write-Host ""
+
+    }
     Function Initialize-FolderLabelPair {
 
         $Folder = Read-Host "Enter folder to be created"
-        $Label  = Read-Host "Enter the label to be applied to $($Folder)"
+        $Label  = Read-Host "Enter the label to be applied to $Folder"
         $Answer = Read-Host "You are creating Folder '$Folder' and applying label '$label' (y/n)"
+
         While ("y", "n" -notcontains $Answer ) {
+
             $Answer = Read-Host "You are creating Folder '$Folder' and applying label '$label' (y/n)"
+
         }
 
         If ($Answer -eq "y") {
+
             $Datum = New-Object -TypeName PSObject
             $Datum | Add-Member -MemberType NoteProperty -Name FolderName -Value $Folder
             $Datum | Add-Member -MemberType NoteProperty -Name LabelName -Value $Label
+
         }
 
         $Script:FolderLabelPairs += $Datum
 
         $Answer = Read-Host "Would you like to create another folder (y/n)"
         While ("y", "n" -notcontains $Answer ) {
+
             $Answer = Read-Host "Would you like to create another folder (y/n)"
+
         }
 
+        Write-Host ""
+
         If ($Answer -eq "y") {
+
             Initialize-FolderLabelPair
-        }
-        Else {
-            # ToDo
-            Write-Host $FolderLabelPairs
+
         }
 
     }
@@ -224,19 +266,27 @@ New-Module {
         Write-Host "Verifying User:" $TheUser
 
             Try {
+
                 $Response = Invoke-WebRequest -Uri $SiteUrl
                 $StatusCode = $Response.StatusCode
+
             }
             Catch {
+
                 $StatusCode = $_.Exception.Response.StatusCode.value__
+
             }
 
             If ($StatusCode -eq 200 -or $StatusCode -eq 400) {
+
                 Write-Host -ForegroundColor Green "Site for user $TheUser has already been provisioned"
+
             }
             Else {
+
                 Write-Host -ForegroundColor Yellow "Provisioning OneDrive for User: $TheUser"
                 New-PnPPersonalSite -Email $User
+
             }
 
         $Response = $null
@@ -245,19 +295,23 @@ New-Module {
             If ($RootFolder -eq "y") {
     
                 Try {
-                    Set-PnPLabel -List "Documents" -Label "$($RootLabel)" -SyncToItems $true -ErrorAction Stop
+
+                    Set-PnPLabel -List "Documents" -Label $RootLabel -SyncToItems $true -ErrorAction Stop
                     Write-Verbose "Label called '$($RootLabel)' applied to 'Documents - Root' Folder"
+
                 } 
                 Catch [Microsoft.SharePoint.Client.ServerException] {
+
                     Write-Warning -Message $($_.Exception.Message)
+
                 } 
                 Catch {
+
                     Write-Warning -Message $($_.Exception.Message)
+
                 }
 
             }
-
-        # ForEach ($Entry in $FolderLabelPairs) {} # Test only - to be removed
 
         ForEach ($Entry in $Script:FolderLabelPairs) {
 
@@ -265,19 +319,25 @@ New-Module {
             $Label  = $Entry.LabelName
 
             Try {
+
                 Get-PnPFolder -Url "Documents/$($Folder)" -ErrorAction Stop
+
             } 
             Catch [Microsoft.SharePoint.Client.ServerException] {
+
                 Add-PnPFolder -Name $Folder -Folder "Documents" -ErrorAction Stop
+
             } 
             Catch {
+
                 Write-Warning -Message $($_.Exception.Message)
+
             }
 
             $Folder = Get-PnPFolder -Url "Documents/$($Folder)"
             $Folder.ListItemAllFields.SetComplianceTagWithNoHold($Label) 
             Invoke-PnPQuery
-            Write-Verbose "Label called '$($Label)' applied to '$($Folder)' Folder"
+            Write-Verbose "Label called '$($Label)' applied to '$($Folder.Name)' Folder"
 
         }
 
@@ -295,44 +355,3 @@ New-Module {
 Export-ModuleMember Add-FolderWithLabel
 
 } | Out-Null
-
-<#
-
-$Result = Get-PnPFolder -Url "Documents/My Recipes"
-Remove-PnPFolder -Folder "Documents" -Name "My Recipres"
-
-Get-PnPFolder -Url "Documents"
-Get-PnPFolder -Url "Documents/My Recipes"
-Get-PnPFolder -Url "Documents/My WorkOuts"
-Get-PnPFolder -Url "Documents/My Certificates"
-Get-PnPFolder -Url "Documents/My Designs"
-
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents"
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents/My Recipes"
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents/My WorkOuts"
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents/My Certificates"
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents/My Designs"
-
-Get-PnPFolderItem -FolderSiteRelativeUrl "Documents/My Designs" | Select -First 1
-
-Get-PnPLabel -List "Documents"
-Get-PnPLabel -List "Documents/My Recipes"
-Get-PnPLabel -List "Documents/My WorkOuts"
-Get-PnPLabel -List "Documents/My Certificates"
-Get-PnPLabel -List "Documents/My Designs"
-
-Reset-PnPLabel -List "Documents"
-Reset-PnPLabel -List "Documents/My Recipes"
-Reset-PnPLabel -List "Documents/My WorkOuts"
-Reset-PnPLabel -List "Documents/My Certificates"
-Reset-PnPLabel -List "Documents/My Designs"
-
-Set-PnPLabel -List "Documents" -Label "Default"
-Set-PnPLabel -List "Documents/My Recipes" -Label "Recipes"
-Set-PnPLabel -List "Documents/My WorkOuts" -Label "WorkOuts"
-Set-PnPLabel -List "Documents/My Certificates" -Label "Certificates"
-Set-PnPLabel -List "Documents/My Designs" -Label "Designs"
-
-Set-PnPLabel -List "Documents" -Label "Default"
-
-#>
