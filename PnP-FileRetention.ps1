@@ -9,6 +9,9 @@ New-Module {
     $Script:ClientID = ""
     $Script:CertPath = ""
 
+    # ToDo: Check for SharePointPnPPowerShellOnline
+    # ToDo: Hopefully check for ExchangeOnlineManagement -RequiredVersion 2.0.3
+
     Function Invoke-Prerequisites {
 
         [OutputType()]
