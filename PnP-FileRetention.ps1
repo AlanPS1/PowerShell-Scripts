@@ -9,9 +9,6 @@ New-Module {
     $Script:ClientID = ""
     $Script:CertPath = ""
 
-    # ToDo: Check for SharePointPnPPowerShellOnline
-    # ToDo: Hopefully check for ExchangeOnlineManagement -RequiredVersion 2.0.3
-
     Function Invoke-Prerequisites {
 
         [OutputType()]
@@ -28,6 +25,17 @@ New-Module {
         [Parameter(Mandatory = $false, HelpMessage = "Enter certificate .pfx path")]
         [String]$CertPath = $CertPath
         )
+
+        If (Get-Module SharePointPnPPowerShellOnline) {
+            Break
+        }
+        ElseIf (Get-Module SharePointPnPPowerShellOnline -ListAvailable) {
+            Import-Module -Name SharePointPnPPowerShellOnline
+        }
+        Else {
+            Install-Module SharePointPnPPowerShellOnline -Confirm
+            Import-Module -Name SharePointPnPPowerShellOnline
+        }
 
         $Script:MySPUrl     = "https://$($Tenant)-my.sharepoint.com/personal"
         $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
