@@ -66,7 +66,7 @@ New-Module {
 
         $Web = Get-PnPWeb -Includes RoleAssignments
 
-        ForEach ($RA in $Web.RoleAssignments) {
+        ForEach ($RA in $Web.RoleAssignments | Where { $_ -like "*@*"}) {
 
             $LoginName = Get-PnPProperty -ClientObject $($RA.Member) -Property LoginName
             $RoleBindings = Get-PnPProperty -ClientObject $RA -Property RoleDefinitionBindings
