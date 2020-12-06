@@ -16,10 +16,14 @@ New-Module {
             )
 
             If ((Get-Culture).LCID -eq "1033") {
+
                 $Script:Date = (Get-Date).tostring("MM-dd-yy")
+
             }
             Else {
+
                 $Script:Date = (Get-Date).tostring("dd-MM-yy")
+                
             }
 
             $Script:Tenant = $Tenant
@@ -33,10 +37,10 @@ New-Module {
     }
 
     Function Get-Administrators {
+
         $Admins = Get-PnPSiteCollectionAdmin
 
         <# Below gets users who have full control - set as administrator via admin portal #>
-
         ForEach ($Admin in $Admins | Where-Object { $_.Title -notlike "*(Admin)*" -and $_ -ne "System Account" }) {
 
             $Datum = New-Object -TypeName PSObject
@@ -50,6 +54,7 @@ New-Module {
             $Script:Data += $Datum
 
         }
+
     }
 
     Function Get-OwnerNoGroup {
@@ -60,15 +65,19 @@ New-Module {
         )
 
         $Web = Get-PnPWeb -Includes RoleAssignments
+
         ForEach ($RA in $Web.RoleAssignments) {
+
             $LoginName = Get-PnPProperty -ClientObject $($RA.Member) -Property LoginName
             $RoleBindings = Get-PnPProperty -ClientObject $RA -Property RoleDefinitionBindings
             If ($RoleBindings.Name -like "*Full Control*" -and $LoginName -notlike "*Owners*") {
 
                 If ($LoginName -like "i:0#.f|membership|*") {
+
                     $LoginName = $LoginName.Split('|')[2]
                     $DisplayName = $LoginName.Split('@')[0].Replace('.', ' ')
                     $DisplayName = (Get-Culture).TextInfo.ToTitleCase($DisplayName)
+
                 }
 
                 $Datum = New-Object -TypeName PSObject
@@ -76,10 +85,14 @@ New-Module {
                 $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
 
                 If ($Subsite -eq "No") {
+
                     $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl
+
                 } 
                 Else {
+
                     $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl
+
                 }
 
                 $Datum | Add-Member -MemberType NoteProperty -Name Group -Value "N/A"
@@ -88,6 +101,7 @@ New-Module {
 
                 $Script:Data += $Datum
             }
+
         }
     }
 
@@ -105,10 +119,10 @@ New-Module {
         $Groups = Get-PnPGroup | Where-Object { $_.Title -like "*Owner*" -or $_.Title -like "*Admin*" } | Select-Object Title, Users
 
         If ($Subsite -eq "No") { 
-            Write-Host "Processing data for $($SiteUrl)"
+            Write-Host "Auditing: $($SiteUrl)" -ForegroundColor Cyan
         } 
         Else { 
-            Write-Host "Processing data for $($SubsiteUrl)"
+            Write-Host "Auditing: $($SubsiteUrl)" -ForegroundColor Cyan
         }
 
         ForEach ($Group in $Groups) {
@@ -124,10 +138,14 @@ New-Module {
                     $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
 
                     If ($Subsite -eq "No") {
+
                         $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl
+
                     } 
                     Else {
+
                         $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl
+
                     }
 
                     $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
@@ -146,13 +164,13 @@ New-Module {
 
     Function Invoke-FilePicker {
 
-        Write-Host "Select certificate .pfx file"
+        Write-Host "Select your certificate .pfx file"
 
         Add-Type -AssemblyName System.Windows.Forms
 
         $Dialog = New-Object System.Windows.Forms.OpenFileDialog
         $Dialog.InitialDirectory = "$InitialDirectory"
-        $Dialog.Title = "Select certificate .pfx file"
+        $Dialog.Title = "Select your certificate .pfx file"
         $Dialog.Filter = "Certificate file|*.pfx"  
         $Dialog.Multiselect = $false
         $Result = $Dialog.ShowDialog()
@@ -173,12 +191,10 @@ New-Module {
 
         Else {
 
-            #Shows upon cancellation of Save Menu
-            Write-Host -ForegroundColor Yellow "Notice: No file selected."
+            Write-Host "Notice: No file selected." -ForegroundColor Yellow
             Break
-        }
 
-        Write-Host "CertPath - Invoke: $CertPath" # Testing only
+        }
         
     }
 
@@ -217,13 +233,14 @@ New-Module {
 
         }
         PROCESS {
+
             Connect-PnPOnline @Params -WarningAction SilentlyContinue
 
             $Script:Sites = Get-PnPTenantSite | Where-Object -Property Template -NotIn ("SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1")
 
             $Sites = $Sites.Url
 
-            # $Sites = $Sites | Select -First 5 -Skip 17 # Test only
+            <# For Testing: Add - "$Sites = $Sites | Select -First 5 -Skip 5" or similar below this comment #>
 
             Disconnect-PnPOnline
 
@@ -283,7 +300,8 @@ New-Module {
                         <# Below gets users who have full control - inherited from a group #>
                         Get-OwnerFromGroup -Subsite $Subsite -SubsiteUrl $SubsiteUrl
 
-                        Write-Host "Data processing complete for $($SubsiteUrl)" -ForegroundColor Yellow
+                        Write-Host "Subsite processed: " -ForegroundColor White -NoNewline
+                        Write-Host "$($SubsiteUrl)" -ForegroundColor DarkGreen
 
                         Disconnect-PnPOnline
 
@@ -291,25 +309,34 @@ New-Module {
 
                 }
 
-                Write-Host "Data processing complete for $($SiteUrl)" -ForegroundColor Cyan
+                Write-Host "Site processed: " -ForegroundColor White -NoNewline
+                Write-Host "$($SiteUrl)" -ForegroundColor Green
 
             }
+
         }
         END {
-            # To do - Import-Excel module to be used to group the data in excel by Url
-
-            # Export results to CSV
+            
             If ($Data) {
+
                 $Path = ".\"
                 $FileName = "$Tenant-SPOAdmins-$Date.csv"
                 $Data | Export-Csv -Path "$Path$FileName" -NoTypeInformation
                 $Location = Get-Location
+
                 Write-Host
-                Write-Host "File called '$FileName' exported to $Location"
+                Write-Host "File called " -NoNewline
+                Write-Host "'$FileName' " -ForegroundColor Green -NoNewline
+                Write-Host "exported to " -NoNewline
+                Write-Host "$Location" -ForegroundColor Green -NoNewline
+                
             }
             Else {
+
                 Write-Host "No Data to Export"
+
             }
+
         }
 
     }
