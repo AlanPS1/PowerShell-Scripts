@@ -70,6 +70,7 @@ New-Module {
 
             $LoginName = Get-PnPProperty -ClientObject $($RA.Member) -Property LoginName
             $RoleBindings = Get-PnPProperty -ClientObject $RA -Property RoleDefinitionBindings
+
             If ($RoleBindings.Name -like "*Full Control*" -and $LoginName -notlike "*Owners*") {
 
                 If ($LoginName -like "i:0#.f|membership|*") {
@@ -78,6 +79,9 @@ New-Module {
                     $DisplayName = $LoginName.Split('@')[0].Replace('.', ' ')
                     $DisplayName = (Get-Culture).TextInfo.ToTitleCase($DisplayName)
 
+                }
+                Else {
+                    $DisplayName = $LoginName
                 }
 
                 $Datum = New-Object -TypeName PSObject
