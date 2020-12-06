@@ -23,7 +23,7 @@ New-Module {
             Else {
 
                 $Script:Date = (Get-Date).tostring("dd-MM-yy")
-                
+
             }
 
             $Script:Tenant = $Tenant
@@ -130,8 +130,8 @@ New-Module {
             $GroupPermission = Get-PnPGroupPermissions -Identity $Group.Title -ErrorAction SilentlyContinue | Where-Object { $_.Hidden -like "False" } 
 
             If ($GroupPermission.RoleTypeKind -eq "Administrator") {
-
-                ForEach ($G in $Group.Users.Title | Where-Object { $_ -notlike "*(Admin)*" -and $_ -ne "System Account" }) {
+                # ForEach ($G in $Group.Users.Title | Where-Object { $_ -notlike "*(Admin)*" -and $_ -ne "System Account" }) 
+                ForEach ($G in $Group.Users.Title) {
 
                     $Datum = New-Object -TypeName PSObject
 
@@ -219,16 +219,21 @@ New-Module {
 
             $Script:CertPass = Read-Host "Enter your certificate password"
 
-            Invoke-Prerequisites -Tenant $Tenant -ClientID $ClientID -CertPath "$CertPath" -CertPass $CertPass
+            $Params = @{
+                Tenant   = $Tenant
+                ClientID = $ClientID
+                CertPath = "$CertPath"
+                CertPass = $CertPass
+            }
+
+            Invoke-Prerequisites @Params
 
             $Params = @{
-
                 ClientId            = $ClientID
                 CertificatePath     = $CertPath
                 CertificatePassword = (ConvertTo-SecureString -AsPlainText $CertPass -Force)
                 Url                 = $TenantUrl
                 Tenant              = $AadDomain
-
             }
 
         }
@@ -251,13 +256,11 @@ New-Module {
                 $Subsite = "No"
 
                 $Params = @{
-
                     ClientId            = $ClientID
                     CertificatePath     = $CertPath
                     CertificatePassword = (ConvertTo-SecureString -AsPlainText $CertPass -Force)
                     Url                 = $SiteUrl
                     Tenant              = $AadDomain
-
                 }
 
                 Connect-PnPOnline @Params -WarningAction SilentlyContinue
@@ -283,13 +286,11 @@ New-Module {
                         $SubsiteUrl = $Site.Url
 
                         $Params = @{
-
                             ClientId            = $ClientID
                             CertificatePath     = $CertPath
                             CertificatePassword = (ConvertTo-SecureString -AsPlainText $CertPass -Force)
                             Url                 = $SubsiteUrl
                             Tenant              = $AadDomain
-
                         }
 
                         Connect-PnPOnline @Params -WarningAction SilentlyContinue
