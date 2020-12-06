@@ -41,7 +41,7 @@ New-Module {
         $Admins = Get-PnPSiteCollectionAdmin
 
         <# Below gets users who have full control - set as administrator via admin portal #>
-        ForEach ($Admin in $Admins | Where-Object { $_.Title -notlike "*(Admin)*" -and $_ -ne "System Account" }) {
+        ForEach ($Admin in $Admins | Where-Object { $_ -ne "System Account" }) {
 
             $Datum = New-Object -TypeName PSObject
 
@@ -116,7 +116,7 @@ New-Module {
             [string]$SubsiteUrl
         )
 
-        $Groups = Get-PnPGroup | Where-Object { $_.Title -like "*Owner*" -or $_.Title -like "*Admin*" } | Select-Object Title, Users
+        $Groups = Get-PnPGroup  | Select-Object Title, Users
 
         If ($Subsite -eq "No") { 
             Write-Host "Auditing: $($SiteUrl)" -ForegroundColor Cyan
@@ -130,8 +130,8 @@ New-Module {
             $GroupPermission = Get-PnPGroupPermissions -Identity $Group.Title -ErrorAction SilentlyContinue | Where-Object { $_.Hidden -like "False" } 
 
             If ($GroupPermission.RoleTypeKind -eq "Administrator") {
-                # ForEach ($G in $Group.Users.Title | Where-Object { $_ -notlike "*(Admin)*" -and $_ -ne "System Account" }) 
-                ForEach ($G in $Group.Users.Title) {
+                
+                ForEach ($G in $Group.Users.Title | Where-Object { $_ -ne "System Account" }) {
 
                     $Datum = New-Object -TypeName PSObject
 
