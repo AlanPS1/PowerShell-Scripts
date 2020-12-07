@@ -15,6 +15,8 @@ New-Module {
                 [string] $CertPass
             )
 
+            $Script:Stopwatch =  [system.diagnostics.stopwatch]::StartNew()
+
             If ((Get-Culture).LCID -eq "1033") {
 
                 $Script:Date = (Get-Date).tostring("MM-dd-yy")
@@ -41,7 +43,8 @@ New-Module {
         $Admins = Get-PnPSiteCollectionAdmin
 
         <# Below gets users who have full control - set as administrator via admin portal #>
-        ForEach ($Admin in $Admins | Where-Object { $_ -ne "System Account" }) {
+        ForEach ($Admin in $Admins | 
+            Where-Object { $_ -ne "System Account" }) {
 
             $Datum = New-Object -TypeName PSObject
 
@@ -66,7 +69,7 @@ New-Module {
 
         $Web = Get-PnPWeb -Includes RoleAssignments
 
-        ForEach ($RA in $Web.RoleAssignments | Where { $_ -like "*@*"}) {
+        ForEach ($RA in $Web.RoleAssignments | Where-Object { $_ -like "*@*"}) {
 
             $LoginName = Get-PnPProperty -ClientObject $($RA.Member) -Property LoginName
             $RoleBindings = Get-PnPProperty -ClientObject $RA -Property RoleDefinitionBindings
@@ -120,7 +123,9 @@ New-Module {
             [string]$SubsiteUrl
         )
 
-        $Groups = Get-PnPGroup  | Select-Object Title, Users
+        $Groups = Get-PnPGroup | 
+            Where { $_.Title -notlike "SharingLinks.*" -and $_.Title -notlike "Limited Access*" } | 
+            Select-Object Title, Users
 
         If ($Subsite -eq "No") { 
             Write-Host "Auditing: $($SiteUrl)" -ForegroundColor Cyan
@@ -131,11 +136,13 @@ New-Module {
 
         ForEach ($Group in $Groups) {
 
-            $GroupPermission = Get-PnPGroupPermissions -Identity $Group.Title -ErrorAction SilentlyContinue | Where-Object { $_.Hidden -like "False" } 
+            $GroupPermission = Get-PnPGroupPermissions -Identity $Group.Title -ErrorAction SilentlyContinue | 
+                Where-Object { $_.Hidden -like "False" } 
 
             If ($GroupPermission.RoleTypeKind -eq "Administrator") {
                 
-                ForEach ($G in $Group.Users.Title | Where-Object { $_ -ne "System Account" }) {
+                ForEach ($G in $Group.Users.Title | 
+                    Where-Object { $_ -ne "System Account" }) {
 
                     $Datum = New-Object -TypeName PSObject
 
@@ -207,10 +214,18 @@ New-Module {
         [OutputType()]
         [CmdletBinding()]
         Param (
-            [Parameter(Mandatory = $true, Position = 1, HelpMessage = "Enter your O365 tenant name, like 'contoso'")]
+            [Parameter(
+                Mandatory = $true, 
+                Position = 1, 
+                HelpMessage = "Enter your O365 tenant name, like 'contoso'"
+            )]
             [ValidateNotNullorEmpty()]
             [string] $Tenant,
-            [Parameter(Mandatory = $true, Position = 2, HelpMessage = "Enter your Az App Client ID")]
+            [Parameter(
+                Mandatory = $true, 
+                Position = 2, 
+                HelpMessage = "Enter your Az App Client ID"
+            )]
             [ValidateNotNullorEmpty()]
             [string] $ClientID
         )
@@ -244,8 +259,17 @@ New-Module {
         PROCESS {
 
             Connect-PnPOnline @Params -WarningAction SilentlyContinue
-
-            $Script:Sites = Get-PnPTenantSite | Where-Object -Property Template -NotIn ("SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1")
+            
+            $Script:Sites = Get-PnPTenantSite | Where-Object -Property Template -NotIn (
+                "SRCHCEN#0", 
+                "SPSMSITEHOST#0", 
+                "APPCATALOG#0", 
+                "POINTPUBLISHINGHUB#0", 
+                "EDISC#0", 
+                "STS#-1", 
+                "SPSPORTAL#0", 
+                "BLANKINTERNETCONTAINER#0"
+            )
 
             $Sites = $Sites.Url
 
@@ -341,6 +365,13 @@ New-Module {
                 Write-Host "No Data to Export"
 
             }
+
+            $TotalSecs = [math]::Round($StopWatch.Elapsed.TotalSeconds, 0)
+            $StopWatch.Stop()
+            Write-Host "Job Took " -NoNewline
+            Write-Host "$TotalSecs Seconds " -NoNewline -ForegroundColor Cyan
+            Write-Host
+            Write-Host "to Complete"
 
         }
 
