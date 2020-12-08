@@ -61,7 +61,7 @@ New-Module {
                         $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "$($Admin.Title) - AD Group" 
                     }
                     Else {
-                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "Global Administrator Role Members" 
+                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "Global Admins" 
                     }
                 }
 
@@ -130,7 +130,7 @@ New-Module {
 
         $Groups = Get-PnPGroup | 
             Where-Object { $_.Title -notlike "SharingLinks.*" -and $_.Title -notlike "Limited Access*" } | 
-            Select-Object Title, Users
+            Select-Object Title, Users, PrincipalType, Id
 
         If ($Subsite -eq "No") { 
             Write-Host "Auditing: $($SiteUrl)" -ForegroundColor Cyan
@@ -139,35 +139,38 @@ New-Module {
             Write-Host "Auditing: $($SubsiteUrl)" -ForegroundColor Cyan
         }
 
-        ForEach ($Group in $Groups) {
+        ForEach ($Group in $Groups | Where-Object { $_.PrincipalType -eq "SharePointGroup" }) {
 
             $GroupPermission = Get-PnPGroupPermissions -Identity $Group.Title -ErrorAction SilentlyContinue | 
                 Where-Object { $_.Hidden -like "False" } 
 
             If ($GroupPermission.RoleTypeKind -eq "Administrator") {
                 
-                ForEach ($G in $Group.Users.Title) {
+                ForEach ($G in $Group | Where-Object { $_.Users.Title -ne "System Account" }) {
 
-                    $Members = Get-PnPGroupMembers -Identity $G | 
-                        Where-Object { $_ -ne "System Account" -and $_.LoginName -like "i:0#.f|membership|*" } | 
-                        Select-Object LoginName, Title
+                    $Members = Get-PnPGroupMembers -Identity $G.Id | Select-Object LoginName, Title, PrincipalType
+                    $Members = $Members | Where-Object { $_.Title -ne "System Account" -and $_.PrincipalType -eq "User" } 
 
-                    ForEach ($Member in $Members) {
+                    If ($Members) {
 
-                        $Datum = New-Object -TypeName PSObject
+                        ForEach ($Member in $Members) {
 
-                        $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
-                        If ($Subsite -eq "No") { 
-                            $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
-                        } 
-                        Else { 
-                            $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
+                            $Datum = New-Object -TypeName PSObject
+
+                            $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
+                            If ($Subsite -eq "No") { 
+                                $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
+                            } 
+                            Else { 
+                                $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
+                            }
+                            $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
+                            $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Member.Title
+                            $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
+
+                            $Script:Data += $Datum
+
                         }
-                        $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
-                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Member.Title
-                        $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
-
-                        $Script:Data += $Datum
 
                     }
 
