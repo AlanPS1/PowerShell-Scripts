@@ -2,39 +2,39 @@ New-Module {
 
     Function Invoke-Prerequisites {
 
-            [OutputType()]
-            [CmdletBinding()]
-            Param (
-                [Parameter(Position = 1)]
-                [string] $Tenant,
-                [Parameter(Position = 2)]
-                [string] $ClientID,
-                [Parameter(Position = 3)]
-                [string] $CertPath,
-                [Parameter(Position = 4)]
-                [string] $CertPass
-            )
+        [OutputType()]
+        [CmdletBinding()]
+        Param (
+            [Parameter(Position = 1)]
+            [string] $Tenant,
+            [Parameter(Position = 2)]
+            [string] $ClientID,
+            [Parameter(Position = 3)]
+            [string] $CertPath,
+            [Parameter(Position = 4)]
+            [string] $CertPass
+        )
 
-            $Script:Stopwatch =  [system.diagnostics.stopwatch]::StartNew()
+        $Script:Stopwatch = [system.diagnostics.stopwatch]::StartNew()
 
-            If ((Get-Culture).LCID -eq "1033") {
+        If ((Get-Culture).LCID -eq "1033") {
 
-                $Script:Date = (Get-Date).tostring("MM-dd-yy")
+            $Script:Date = (Get-Date).tostring("MM-dd-yy")
 
-            }
-            Else {
+        }
+        Else {
 
-                $Script:Date = (Get-Date).tostring("dd-MM-yy")
+            $Script:Date = (Get-Date).tostring("dd-MM-yy")
 
-            }
+        }
 
-            $Script:Tenant = $Tenant
+        $Script:Tenant = $Tenant
 
-            $Script:TenantUrl   = "https://$($Tenant).sharepoint.com"
-            $Script:AadDomain   = "$($Tenant).onmicrosoft.com"
-            $Script:ClientID    = $ClientID
-            $Script:CertPass    = $CertPass
-            $Script:CertPath    = $CertPath
+        $Script:TenantUrl = "https://$($Tenant).sharepoint.com"
+        $Script:AadDomain = "$($Tenant).onmicrosoft.com"
+        $Script:ClientID = $ClientID
+        $Script:CertPass = $CertPass
+        $Script:CertPath = $CertPath
 
     }
 
@@ -43,15 +43,30 @@ New-Module {
         $Admins = Get-PnPSiteCollectionAdmin
 
         <# Below gets users who have full control - set as administrator via admin portal #>
-        ForEach ($Admin in $Admins | 
-            Where-Object { $_ -ne "System Account" }) {
+        ForEach ($Admin in $Admins | Where-Object { $_ -ne "System Account" }) {
 
             $Datum = New-Object -TypeName PSObject
 
             $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
             $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl
             $Datum | Add-Member -MemberType NoteProperty -Name Group -Value "Aministrators"
-            $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Admin.Title
+
+            Switch ($Admin.PrincipalType) {
+
+                "User" { 
+                    $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Admin.Title 
+                }
+                "SecurityGroup" {
+                    If ($Admin.Title -ne "Company Administrator") {
+                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "$($Admin.Title) - AD Group" 
+                    }
+                    Else {
+                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "Global Administrator Role Members" 
+                    }
+                }
+
+            }
+
             $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value "No"
 
             $Script:Data += $Datum
@@ -69,47 +84,39 @@ New-Module {
 
         $Web = Get-PnPWeb -Includes RoleAssignments
 
-        ForEach ($RA in $Web.RoleAssignments | Where-Object { $_ -like "*@*"}) {
+        ForEach ($RA in $Web.RoleAssignments) {
 
-            $LoginName = Get-PnPProperty -ClientObject $($RA.Member) -Property LoginName
             $RoleBindings = Get-PnPProperty -ClientObject $RA -Property RoleDefinitionBindings
+            $PrincipalType = Get-PnPProperty -ClientObject $($RA.Member) -Property PrincipalType
 
-            If ($RoleBindings.Name -like "*Full Control*" -and $LoginName -notlike "*Owners*") {
+            $RoleTypeKind = ($RoleBindings.RoleTypeKind).ToString()
+            $PType = $PrincipalType.ToString()
 
-                If ($LoginName -like "i:0#.f|membership|*") {
+            If ($PType -eq "User" -and $RoleTypeKind -eq "Administrator") {
 
-                    $LoginName = $LoginName.Split('|')[2]
-                    $DisplayName = $LoginName.Split('@')[0].Replace('.', ' ')
-                    $DisplayName = (Get-Culture).TextInfo.ToTitleCase($DisplayName)
+                $Title = Get-PnPProperty -ClientObject $($RA.Member) -Property Title
 
-                }
-                Else {
-                    $DisplayName = $LoginName
-                }
+                # Write-Host "*** PType: $PType"
 
                 $Datum = New-Object -TypeName PSObject
 
                 $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
-
-                If ($Subsite -eq "No") {
-
-                    $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl
-
+                If ($Subsite -eq "No") { 
+                    $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
                 } 
-                Else {
-
-                    $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl
-
+                Else { 
+                    $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
                 }
-
                 $Datum | Add-Member -MemberType NoteProperty -Name Group -Value "N/A"
-                $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $DisplayName
+                $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Title
                 $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
 
                 $Script:Data += $Datum
+
             }
 
         }
+
     }
 
     Function Get-OwnerFromGroup {
@@ -124,7 +131,7 @@ New-Module {
         )
 
         $Groups = Get-PnPGroup | 
-            Where { $_.Title -notlike "SharingLinks.*" -and $_.Title -notlike "Limited Access*" } | 
+            Where-Object { $_.Title -notlike "SharingLinks.*" -and $_.Title -notlike "Limited Access*" } | 
             Select-Object Title, Users
 
         If ($Subsite -eq "No") { 
@@ -147,18 +154,12 @@ New-Module {
                     $Datum = New-Object -TypeName PSObject
 
                     $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
-
-                    If ($Subsite -eq "No") {
-
-                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl
-
+                    If ($Subsite -eq "No") { 
+                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
                     } 
-                    Else {
-
-                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl
-
+                    Else { 
+                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
                     }
-
                     $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
                     $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $G
                     $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
@@ -260,15 +261,13 @@ New-Module {
 
             Connect-PnPOnline @Params -WarningAction SilentlyContinue
             
-            $Script:Sites = Get-PnPTenantSite | Where-Object -Property Template -NotIn (
+            $Script:Sites = Get-PnPTenantSite -Filter "Url -notlike '*/portals/*'" | Where-Object -Property Template -NotIn (
                 "SRCHCEN#0", 
                 "SPSMSITEHOST#0", 
                 "APPCATALOG#0", 
                 "POINTPUBLISHINGHUB#0", 
                 "EDISC#0", 
-                "STS#-1", 
-                "SPSPORTAL#0", 
-                "BLANKINTERNETCONTAINER#0"
+                "STS#-1"
             )
 
             $Sites = $Sites.Url
@@ -380,4 +379,3 @@ New-Module {
     Export-ModuleMember Export-SPOAdmin
 
 } | Out-Null
-
