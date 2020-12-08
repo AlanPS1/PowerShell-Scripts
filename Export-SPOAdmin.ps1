@@ -96,8 +96,6 @@ New-Module {
 
                 $Title = Get-PnPProperty -ClientObject $($RA.Member) -Property Title
 
-                # Write-Host "*** PType: $PType"
-
                 $Datum = New-Object -TypeName PSObject
 
                 $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
@@ -367,10 +365,35 @@ New-Module {
 
             $TotalSecs = [math]::Round($StopWatch.Elapsed.TotalSeconds, 0)
             $StopWatch.Stop()
-            Write-Host "Job Took " -NoNewline
-            Write-Host "$TotalSecs Seconds " -NoNewline -ForegroundColor Cyan
-            Write-Host
-            Write-Host "to Complete"
+
+            If ($TotalSecs -lt 60) { 
+
+                Write-Host "Job Took " -NoNewline
+                Write-Host "$TotalSecs Seconds " -NoNewline -ForegroundColor Cyan
+                Write-Host "to Complete"
+
+
+            }
+            ElseIf ($TotalSecs -ge 60 -and $TotalSecs -lt 3600) {
+
+                $Count = New-TimeSpan -Seconds $TotalSecs
+
+                Write-Host "Job Took " -NoNewline
+                Write-Host "$($Count.Minutes) Minutes " -NoNewline -ForegroundColor Cyan
+                Write-Host "and $($Count.Seconds) Seconds " -NoNewline -ForegroundColor Cyan
+                Write-Host "to Complete"
+            }
+            Else {
+
+                $Count = New-TimeSpan -Seconds $TotalSecs
+
+                Write-Host "Job Took " -NoNewline
+                Write-Host "$($Count.Hours) Hours, " -NoNewline -ForegroundColor Cyan
+                Write-Host "$($Count.Minutes) Minutes and " -NoNewline -ForegroundColor Cyan
+                Write-Host "$($Count.Seconds) Seconds " -NoNewline -ForegroundColor Cyan
+                Write-Host "to Complete"
+
+            }
 
         }
 
