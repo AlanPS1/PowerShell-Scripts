@@ -146,23 +146,30 @@ New-Module {
 
             If ($GroupPermission.RoleTypeKind -eq "Administrator") {
                 
-                ForEach ($G in $Group.Users.Title | 
-                    Where-Object { $_ -ne "System Account" }) {
+                ForEach ($G in $Group.Users.Title) {
 
-                    $Datum = New-Object -TypeName PSObject
+                    $Members = Get-PnPGroupMembers -Identity $G | 
+                        Where-Object { $_ -ne "System Account" -and $_.LoginName -like "i:0#.f|membership|*" } | 
+                        Select-Object LoginName, Title
 
-                    $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
-                    If ($Subsite -eq "No") { 
-                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
-                    } 
-                    Else { 
-                        $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
+                    ForEach ($Member in $Members) {
+
+                        $Datum = New-Object -TypeName PSObject
+
+                        $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
+                        If ($Subsite -eq "No") { 
+                            $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SiteUrl 
+                        } 
+                        Else { 
+                            $Datum | Add-Member -MemberType NoteProperty -Name Site -Value $SubsiteUrl 
+                        }
+                        $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
+                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Member.Title
+                        $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
+
+                        $Script:Data += $Datum
+
                     }
-                    $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
-                    $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $G
-                    $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
-
-                    $Script:Data += $Datum
 
                 }
 
@@ -354,7 +361,8 @@ New-Module {
                 Write-Host "File called " -NoNewline
                 Write-Host "'$FileName' " -ForegroundColor Green -NoNewline
                 Write-Host "exported to " -NoNewline
-                Write-Host "$Location" -ForegroundColor Green -NoNewline
+                Write-Host "$Location" -ForegroundColor Green
+                Write-Host
                 
             }
             Else {
