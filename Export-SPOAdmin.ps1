@@ -60,6 +60,9 @@ New-Module {
                     If ($Admin.Title -ne "Company Administrator") {
                         $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "$($Admin.Title) - AD Group" 
                     }
+                    ElseIf ($Admin.Title -eq "SharePoint Service Administrator") {
+                        $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $($Admin.Title)
+                    }
                     Else {
                         $Datum | Add-Member -MemberType NoteProperty -Name Member -Value "Global Admins" 
                     }
@@ -68,6 +71,7 @@ New-Module {
             }
 
             $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value "No"
+            $Datum | Add-Member -MemberType NoteProperty -Name Permissions -Value "Unique"
 
             $Script:Data += $Datum
 
@@ -108,6 +112,7 @@ New-Module {
                 $Datum | Add-Member -MemberType NoteProperty -Name Group -Value "N/A"
                 $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Title
                 $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
+                $Datum | Add-Member -MemberType NoteProperty -Name Permissions -Value "Unique"
 
                 $Script:Data += $Datum
 
@@ -128,6 +133,7 @@ New-Module {
             [string]$SubsiteUrl
         )
 
+        # HasUniqueRoleAssignments
         $Groups = Get-PnPGroup | 
             Where-Object { $_.Title -notlike "SharingLinks.*" -and $_.Title -notlike "Limited Access*" } | 
             Select-Object Title, Users, PrincipalType, Id
@@ -155,6 +161,13 @@ New-Module {
 
                         ForEach ($Member in $Members) {
 
+                            If ($Site.HasUniqueRoleAssignments -eq $null -or $Site.HasUniqueRoleAssignments -eq $true) { 
+                                $InheritsPermissions = "Unique" 
+                            }
+                            Else { 
+                                $InheritsPermissions = "Inherited"
+                            }
+
                             $Datum = New-Object -TypeName PSObject
 
                             $Datum | Add-Member -MemberType NoteProperty -Name Tenant -Value $Tenant
@@ -167,6 +180,7 @@ New-Module {
                             $Datum | Add-Member -MemberType NoteProperty -Name Group -Value $Group.Title
                             $Datum | Add-Member -MemberType NoteProperty -Name Member -Value $Member.Title
                             $Datum | Add-Member -MemberType NoteProperty -Name Subsite -Value $Subsite
+                            $Datum | Add-Member -MemberType NoteProperty -Name Permissions -Value $InheritsPermissions
 
                             $Script:Data += $Datum
 
@@ -309,7 +323,8 @@ New-Module {
                 <# Below gets users who have full control - set as administrator via admin portal #>
                 Get-Administrators
 
-                $SubSites = Get-PnPSubWebs -Recurse
+                $SubSites = Get-PnpSubwebs -Recurse -Includes HasUniqueRoleAssignments # need to do more with this
+                # $SubSites = Get-PnPSubWebs -Recurse
 
                 Disconnect-PnPOnline
 
