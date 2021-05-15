@@ -123,7 +123,17 @@ Function Invoke-TeamsReprofile {
         # Restart Outlook
         If ($OutlookProcess) {
 
-            Start-Process -File "C:\Program Files\Microsoft Office\root\Office16\Outlook.exe"
+            $OutlookExe = Get-ChildItem -Path 'C:\Program Files\Microsoft Office\root\Office16' -Filter Outlook.exe -Recurse -ErrorAction SilentlyContinue -Force | 
+                Where-Object { $_.Directory -notlike "*Updates*" } | 
+                Select-Object Name, Directory
+
+            If (!$OutlookExe) {
+
+                $OutlookExe = Get-ChildItem -Path 'C:\Program Files (x86)\Microsoft Office\root\Office16' -Filter Outlook.exe -Recurse -ErrorAction SilentlyContinue -Force | 
+                Where-Object { $_.Directory -notlike "*Updates*" } | 
+                Select-Object Name, Directory
+            }
+
             Write-Host "Outlook was initially running, so we restarted it" -ForegroundColor Green
 
         }
