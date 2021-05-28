@@ -49,7 +49,7 @@ Function Invoke-TeamsReprofile {
         $LoggedOnUser = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object UserName).UserName.Split('\')[1]
 
         # Construct the logged on user's equivelant to $Home variable
-        $LoggedOnUserHome = "C:\Users\$LoggedOnUser"
+        $LoggedOnUserHome = "$($Home.Split($($LoggedOnUser))[0])$($LoggedOnUser)" 
 
         # Get MS Teams process. Only using 'SilentlyContinue' as we test this below
         $TeamsProcess = Get-Process Teams -ErrorAction SilentlyContinue
